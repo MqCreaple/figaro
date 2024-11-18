@@ -101,6 +101,7 @@ def reconstruct_sample(model, batch,
 
   xs = batch['input_ids'].detach().cpu()
   xs_hat = sample['sequences'].detach().cpu()
+  print(xs_hat)
   events = [model.vocab.decode(x) for x in xs]
   events_hat = [model.vocab.decode(x) for x in xs_hat]
 
@@ -155,7 +156,7 @@ def main():
   model, vae_module = load_model(args.checkpoint, args.vae_checkpoint)
 
 
-  midi_files = glob.glob(os.path.join(args.lmd_dir, '**/*.mid'), recursive=True)
+  midi_files = glob.glob(os.path.join(args.lmd_dir, 'game-bgm', '**/*.mid'), recursive=True)
   
   dm = model.get_datamodule(midi_files, vae_module=vae_module)
   dm.setup('test')

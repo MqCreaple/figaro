@@ -2,6 +2,7 @@ import pretty_midi
 from collections import Counter
 import torchtext
 from torch import Tensor
+import os
 
 from constants import (
   DEFAULT_VELOCITY_BINS,
@@ -129,38 +130,56 @@ class Vocab:
 
 
 class RemiVocab(Vocab):
-  def __init__(self):
-    midi_tokens = Tokens.get_midi_tokens()
-    chord_tokens = Tokens.get_chord_tokens()
+  def __init__(self, token_file_path: str = 'tokens/remi_tokens.txt'):
+    if os.path.exists(token_file_path):
+      # if the token file exists, load the tokens from the file
+      with open(token_file_path, 'r') as f:
+        self.tokens = f.read().split('\n')
+    else:
+      # otherwise, compute the tokens and save it in the file
+      midi_tokens = Tokens.get_midi_tokens()
+      chord_tokens = Tokens.get_chord_tokens()
 
-    self.tokens = midi_tokens + chord_tokens
+      self.tokens = midi_tokens + chord_tokens
+      # save the tokens in the file
+      with open(token_file_path, 'w') as f:
+        f.write('\n'.join(self.tokens))
 
     counter = Counter(self.tokens)
     super().__init__(counter)
 
 
 class DescriptionVocab(Vocab):
-  def __init__(self):
-    time_sig_tokens = Tokens.get_time_signature_tokens()
-    instrument_tokens = Tokens.get_instrument_tokens()
-    chord_tokens = Tokens.get_chord_tokens()
+  def __init__(self, token_file_path: str = 'tokens/description_tokens.txt'):
+    if os.path.exists(token_file_path):
+      # if the token file exists, load the tokens from the file
+      with open(token_file_path, 'r') as f:
+        self.tokens = f.read().split('\n')
+    else:
+      # otherwise, compute the tokens and save it in the file
+      time_sig_tokens = Tokens.get_time_signature_tokens()
+      instrument_tokens = Tokens.get_instrument_tokens()
+      chord_tokens = Tokens.get_chord_tokens()
 
-    bar_tokens = [f'Bar_{i}' for i in range(MAX_N_BARS)]
-    density_tokens = [f'{NOTE_DENSITY_KEY}_{i}' for i in range(len(DEFAULT_NOTE_DENSITY_BINS))]
-    velocity_tokens = [f'{MEAN_VELOCITY_KEY}_{i}' for i in range(len(DEFAULT_MEAN_VELOCITY_BINS))]
-    pitch_tokens = [f'{MEAN_PITCH_KEY}_{i}' for i in range(len(DEFAULT_MEAN_PITCH_BINS))]
-    duration_tokens = [f'{MEAN_DURATION_KEY}_{i}' for i in range(len(DEFAULT_MEAN_DURATION_BINS))]
+      bar_tokens = [f'Bar_{i}' for i in range(MAX_N_BARS)]
+      density_tokens = [f'{NOTE_DENSITY_KEY}_{i}' for i in range(len(DEFAULT_NOTE_DENSITY_BINS))]
+      velocity_tokens = [f'{MEAN_VELOCITY_KEY}_{i}' for i in range(len(DEFAULT_MEAN_VELOCITY_BINS))]
+      pitch_tokens = [f'{MEAN_PITCH_KEY}_{i}' for i in range(len(DEFAULT_MEAN_PITCH_BINS))]
+      duration_tokens = [f'{MEAN_DURATION_KEY}_{i}' for i in range(len(DEFAULT_MEAN_DURATION_BINS))]
 
-    self.tokens = (
-      time_sig_tokens +
-      instrument_tokens + 
-      chord_tokens + 
-      density_tokens + 
-      velocity_tokens + 
-      pitch_tokens + 
-      duration_tokens + 
-      bar_tokens
-    )
+      self.tokens = (
+        time_sig_tokens +
+        instrument_tokens + 
+        chord_tokens + 
+        density_tokens + 
+        velocity_tokens + 
+        pitch_tokens + 
+        duration_tokens + 
+        bar_tokens
+      )
+      # save the tokens in the file
+      with open(token_file_path, 'w') as f:
+        f.write('\n'.join(self.tokens))
 
     counter = Counter(self.tokens)
     super().__init__(counter)

@@ -307,6 +307,7 @@ class Seq2SeqModule(pl.LightningModule):
     eos_token=EOS_TOKEN,
     verbose=0,
   ):
+    import time
     
     # Setup and parsing arguments
 
@@ -331,7 +332,13 @@ class Seq2SeqModule(pl.LightningModule):
       z, desc_bar_ids = batch['description'], batch['desc_bar_ids'].to(self.device)
     else:
       z, desc_bar_ids = None, None
-      
+
+    # Description scrolling
+    if self.description_flavor in ['description', 'both']:
+      if self.description_flavor == 'description':
+        desc = z
+      else:
+        desc = z['description']
 
     is_done = torch.zeros(batch_size, dtype=torch.bool)
 
@@ -348,14 +355,8 @@ class Seq2SeqModule(pl.LightningModule):
       x_ = x[:, -self.context_size:].to(self.device)
       bar_ids_ = bar_ids[:, -self.context_size:].to(self.device)
       position_ids_ = position_ids[:, -self.context_size:].to(self.device)
-
-      # Description scrolling
-      if self.description_flavor in ['description', 'both']:
-        if self.description_flavor == 'description':
-          desc = z
-        else:
-          desc = z['description']
         
+      if self.description_flavor in ['description', 'both']:
         next_bars = bar_ids_[:, 0]
         bars_changed = not (next_bars == curr_bars).all()
         curr_bars = next_bars

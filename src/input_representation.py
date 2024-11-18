@@ -59,6 +59,14 @@ class Event(object):
       self.name, self.time, self.value, self.text)
 
 class InputRepresentation():
+  """An utility class to convert MIDI files to REMI events.
+
+  ...
+  Attributes:
+  -----------
+  pm : pretty_midi.PrettyMIDI
+    The pretty_midi object of the MIDI file.
+  """
   def version():
     return 'v4'
   
@@ -220,12 +228,12 @@ class InputRepresentation():
     else:
       items = self.tempo_items + self.note_items
 
+    type_priority = {
+      'Chord': 0,
+      'Tempo': 1,
+      'Note': 2
+    }
     def _get_key(item):
-      type_priority = {
-        'Chord': 0,
-        'Tempo': 1,
-        'Note': 2
-      }
       return (
         item.start, # order by time
         type_priority[item.name], # chord events first, then tempo events, then note events
@@ -519,7 +527,6 @@ class InputRepresentation():
 #############################################################################################
 
 def remi2midi(events, bpm=120, time_signature=(4, 4), polyphony_limit=16):
-  vocab = RemiVocab()
 
   def _get_time(bar, position, bpm=120, positions_per_bar=48):
     abs_position = bar*positions_per_bar + position
