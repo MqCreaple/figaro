@@ -11,6 +11,7 @@ from models.seq2seq import Seq2SeqModule
 from datasets import MidiDataset, SeqCollator
 from utils import medley_iterator
 from input_representation import remi2midi
+from vocab import DescriptionVocab
 
 
 def parse_args():
@@ -36,7 +37,7 @@ def parse_args():
 
 def load_old_or_new_checkpoint(model_class, checkpoint):
   # assuming transformers>=4.36.0
-  pl_ckpt = torch.load(checkpoint, map_location="cpu")
+  pl_ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
   kwargs = pl_ckpt['hyper_parameters']
   if 'flavor' in kwargs:
     del kwargs['flavor']
@@ -67,7 +68,7 @@ def load_model(checkpoint, vae_checkpoint=None, device='auto'):
   vae_module = None
   if vae_checkpoint:
     vae_module = load_old_or_new_checkpoint(VqVaeModule, vae_checkpoint)
-    vae_module.cpu()
+    vae_module.to(device)
 
   model = load_old_or_new_checkpoint(Seq2SeqModule, checkpoint)
   model.to(device)
@@ -83,6 +84,8 @@ def reconstruct_sample(model, batch,
   max_bars=-1,
   verbose=0,
 ):
+  print("Reconstructing: ", batch['files'])
+  desc_vocab = DescriptionVocab()
   batch_size, seq_len = batch['input_ids'].shape[:2]
 
   batch_ = { key: batch[key][:, :initial_context] for key in ['input_ids', 'bar_ids', 'position_ids'] }
@@ -91,6 +94,9 @@ def reconstruct_sample(model, batch,
     batch_['desc_bar_ids'] = batch['desc_bar_ids']
   if model.description_flavor in ['latent', 'both']:
     batch_['latents'] = batch['latents']
+  if output_dir:
+    with open(os.path.join(output_dir, 'desc.txt'), "w+") as f:
+      print([desc_vocab.to_s(desc_int) for desc_int in batch_['description'].squeeze().tolist()], file=f)
 
   max_len = seq_len + 1024
   if max_iter > 0:
@@ -157,7 +163,7 @@ def main():
 
 
   midi_files = glob.glob(os.path.join(args.lmd_dir, 'game-bgm', '**/*.mid'), recursive=True)
-  
+
   dm = model.get_datamodule(midi_files, vae_module=vae_module)
   dm.setup('test')
   midi_files = dm.test_ds.files

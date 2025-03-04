@@ -1,8 +1,8 @@
 import pretty_midi
 from collections import Counter
-import torchtext
 from torch import Tensor
 import os
+import numpy as np
 
 from constants import (
   DEFAULT_VELOCITY_BINS,
@@ -99,34 +99,42 @@ class Tokens:
 
 class Vocab:
   def __init__(self, counter, specials=[PAD_TOKEN, UNK_TOKEN, BOS_TOKEN, EOS_TOKEN, MASK_TOKEN], unk_token=UNK_TOKEN):
-    self.vocab = torchtext.vocab.vocab(counter)
+    self.forward_map = dict()
+    self.backward_map = []
+    self.default_token = 0
 
     self.specials = specials
     for i, token in enumerate(self.specials):
-      self.vocab.insert_token(token, i)
+      self.backward_map.append(token)
+      self.forward_map[token] = i
     
     if unk_token in specials:
-      self.vocab.set_default_index(self.vocab.get_stoi()[unk_token])
+      self.default_token = self.forward_map[unk_token]
+
+    for token, count in counter.items():
+      if token not in self.forward_map:
+        self.forward_map[token] = len(self.backward_map)
+        self.backward_map.append(token)
 
   def to_i(self, token):
-    return self.vocab.get_stoi()[token]
+    return self.forward_map.get(token, self.default_token)
 
   def to_s(self, idx):
-    if idx >= len(self.vocab):
+    if idx >= len(self.backward_map):
       return UNK_TOKEN
     else:
-      return self.vocab.get_itos()[idx]
+      return self.backward_map[idx]
 
   def __len__(self):
-    return len(self.vocab)
+    return len(self.backward_map)
 
   def encode(self, seq):
-    return self.vocab(seq)
+    return [self.to_i(token) for token in seq]
 
   def decode(self, seq):
     if isinstance(seq, Tensor):
       seq = seq.numpy()
-    return self.vocab.lookup_tokens(seq)
+    return [self.to_s(idx) for idx in seq]
 
 
 class RemiVocab(Vocab):
@@ -161,7 +169,7 @@ class DescriptionVocab(Vocab):
       instrument_tokens = Tokens.get_instrument_tokens()
       chord_tokens = Tokens.get_chord_tokens()
 
-      bar_tokens = [f'Bar_{i}' for i in range(MAX_N_BARS)]
+      bar_tokens = [f'{BAR_KEY}_{i}' for i in range(MAX_N_BARS)]
       density_tokens = [f'{NOTE_DENSITY_KEY}_{i}' for i in range(len(DEFAULT_NOTE_DENSITY_BINS))]
       velocity_tokens = [f'{MEAN_VELOCITY_KEY}_{i}' for i in range(len(DEFAULT_MEAN_VELOCITY_BINS))]
       pitch_tokens = [f'{MEAN_PITCH_KEY}_{i}' for i in range(len(DEFAULT_MEAN_PITCH_BINS))]
